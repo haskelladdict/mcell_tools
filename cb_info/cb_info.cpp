@@ -164,7 +164,7 @@ static CmdlOpts parse_cmdline(int argc, char** argv) {
 
   int c;
   CmdlOpts cmdlOpts;
-  while ((c = getopt_long(argc, argv, "ins:polh", long_options, NULL)) != -1) {
+  while ((c = getopt_long(argc, argv, "in:spolh", long_options, NULL)) != -1) {
     switch (c) {
       case 'i':
         cmdlOpts.info = true;
