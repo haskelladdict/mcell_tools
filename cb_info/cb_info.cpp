@@ -14,6 +14,7 @@
 // forward declaration of static funcs
 static void usage(); 
 static CmdlOpts parse_cmdline(int argc, char** argv);
+static void print_positions(const SpecMap& specs, const CmdlOpts& cmdlOpts);
 
 int main(int argc, char** argv) {
 
@@ -29,7 +30,7 @@ int main(int argc, char** argv) {
   }
 
   for (const auto& fileName : cmdl.files) {
-    std::unordered_map<std::string, Species> specs;
+    SpecMap specs;
     try {
       specs = parse_cb(fileName);
     } catch (std::exception& e) {
@@ -40,24 +41,13 @@ int main(int argc, char** argv) {
 
     if (cmdl.info) {
       for (const auto& s : specs) {
-        std::cout << s.first << "  " << s.second.pos.size() << "\n";
+        std::cout << s.first << "  " << s.second.pos.size() 
+          << "  " << (s.second.isVolMol ? "VOL" : "SURF") << "\n";
       }
     }
 
     if (cmdl.listMolPos) {
-      if (cmdl.spec != "" && specs.find(cmdl.spec) != specs.end()) {
-        for (const auto& v : specs[cmdl.spec].pos) {
-          std::cout << v << "\n";
-        }
-      }
-      if (cmdl.spec == "") {
-        for (const auto& s : specs) {
-          std::cout << "--------- " << s.first << "\n";
-          for (const auto& v : s.second.pos) {
-            std::cout << v << "\n";
-          }
-        }
-      }
+      print_positions(specs, cmdl);
     }
   }
 
@@ -65,13 +55,13 @@ int main(int argc, char** argv) {
 }
 
 // parse_cb does the actual work of parsing the cellblender input file
-std::unordered_map<std::string, Species> parse_cb(const std::string& fileName) {
+SpecMap parse_cb(const std::string& fileName) {
   std::ifstream file(fileName);
   if (file.fail()) {
     throw std::runtime_error("failed to open");
   }
 
-  std::unordered_map<std::string, Species> specs;
+  SpecMap specs;
   uint32_t version;
   read_val(file, version);
 
@@ -88,8 +78,11 @@ std::unordered_map<std::string, Species> parse_cb(const std::string& fileName) {
 
     unsigned char type;
     read_val(file, type);
-    if (type != 0) {
-      throw std::runtime_error("non volume molecule encountered");
+    spec.isVolMol = (type == 0) ? true : false;
+    // FIXME: currently we support only volume molecules
+    // this check can go away once surface mols are supported
+    if (!spec.isVolMol) {
+      throw std::runtime_error("surface mols are not currently supported");
     }
 
     uint32_t numMols;
@@ -114,6 +107,24 @@ std::unordered_map<std::string, Species> parse_cb(const std::string& fileName) {
   return specs;
 }
 
+// print_positions prints the position info of the requested molecules
+void print_positions(const SpecMap& specs, const CmdlOpts& cmdl) {
+  if (cmdl.spec != "" && specs.find(cmdl.spec) != specs.end()) {
+    for (const auto& v : specs.at(cmdl.spec).pos) {
+      std::cout << v << "\n";
+    }
+  }
+  if (cmdl.spec == "") {
+    for (const auto& s : specs) {
+      if (cmdl.addSeparator) {
+        std::cout << "--- " << s.first << "\n";
+      }
+      for (const auto& v : s.second.pos) {
+        std::cout << v << "\n";
+      }
+    }
+  }
+}
 
 // usage prints a quick usage info
 void usage() {
@@ -122,7 +133,7 @@ void usage() {
       << "usage: cb_info [options] <file1> <file2> ....\n\n"
       << "Options:"
       << "\n"
-      << "\t-s, --species_info       print names of species and number of\n"
+      << "\t-i, --species_info       print names of species and number of\n"
       << "\t                         available molecules\n"
       << "\t-p, --print_mol_positions <species type>\n"
       << "\t                         print the (x,y,z) positions of all\n"
@@ -131,6 +142,9 @@ void usage() {
       << "\t                         print the orientations of all\n"
       << "\t                         molecules of species type\n"
       << "\t                         (empty string \"\" implies all species)\n"
+      << "\t-s, --add_separator      add separator between species in "
+         "printout\n"
+      << "\t-n, --species_name       name of species to print\n" 
       << "\t-h, --help               this help message\n" << std::endl;
 }
 
@@ -140,7 +154,8 @@ static struct option long_options[] = {
     {"species_info", no_argument, NULL, 'i'},
     {"print_mol_positions", no_argument, NULL, 'p'},
     {"print_mol_orientations", no_argument, NULL, 'o'},
-    {"species_name", required_argument, NULL, 's'},
+    {"add_separator", no_argument, NULL, 's'},
+    {"species_name", required_argument, NULL, 'n'},
     {"help", no_argument, NULL, 'h'}};
 
 // parse_cmdline parses the user provided command line options and
@@ -149,7 +164,7 @@ static CmdlOpts parse_cmdline(int argc, char** argv) {
 
   int c;
   CmdlOpts cmdlOpts;
-  while ((c = getopt_long(argc, argv, "is:polh", long_options, NULL)) != -1) {
+  while ((c = getopt_long(argc, argv, "ins:polh", long_options, NULL)) != -1) {
     switch (c) {
       case 'i':
         cmdlOpts.info = true;
@@ -163,8 +178,12 @@ static CmdlOpts parse_cmdline(int argc, char** argv) {
         cmdlOpts.listMolOrient = true;
         break;
 
-      case 's':
+      case 'n':
         cmdlOpts.spec = optarg;
+        break;
+
+      case 's':
+        cmdlOpts.addSeparator = true;
         break;
 
       case 'h':
