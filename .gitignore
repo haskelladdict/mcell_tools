@@ -1,4 +1,5 @@
 test*
 *.swp
 *.o
+tags
 cb_info/cb_info

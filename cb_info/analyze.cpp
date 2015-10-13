@@ -9,30 +9,109 @@
 
 #include "analyze.hpp"
 
-static std::tuple<long long, Vec3, Vec3> compute_bounds(
+using binArray = std::array<long long, N3>;
+
+// static helper functions
+static std::tuple<Vec3, Vec3> compute_bounds(
     const SpecMap& specMap, const std::vector<std::string>& specs);
 
+static std::tuple<binArray, long long> compute_bins(
+    const SpecMap& specMap, const std::vector<std::string>& specs,
+    const Vec3& llc, const Vec3& urc);
+
+static void print_results(const Vec3& v1, const Vec3& v2, double chi);
+
+
 // analyze_mol_positions tests if molecules are uniformly distributed
-void analyze_mol_positions(const SpecMap& specMap,
-                           const std::vector<std::string>& specs) {
+std::string analyze_mol_positions(const SpecMap& specMap,
+                                  const std::vector<std::string>& specs) {
   Vec3 llc;
   Vec3 urc;
+  std::tie(llc, urc) = compute_bounds(specMap, specs);
+
+  binArray bin;
   long long numMols;
-  std::tie(numMols, llc, urc) = compute_bounds(specMap, specs);
+  std::tie(bin, numMols) = compute_bins(specMap, specs, llc, urc);
   if (numMols == 0) {
-    return;
+    return "selection contains no molecules";
   }
 
-  std::cout << "# mols: " << numMols << "\n"; 
-  std::cout << "llc: " << llc << "\n";
-  std::cout << "urc: " << urc << "\n";
+  double expected = numMols / static_cast<double>(N3);
+  double chi2 = 0;
+  for (int z = 0; z < N; ++z) {
+    for (int y = 0; y < N; ++y) {
+      for (int x = 0; x < N; ++x) {
+        double val = bin[x + y * N + z * N2] - expected;
+        chi2 += val * val;
+      }
+    }
+  }
+  chi2 /= expected;
+  print_results(llc, urc, chi2);
+  return "";
+}
 
-  constexpr long long N = 10;
-  constexpr long long N2 = N*N;
-  constexpr long long N3 = N*N*N;
-  Vec3 diff = urc - llc;
-  Vec3 delta = diff/N;
-  std::array<long long, N3> bin{};
+
+// compute_bounds computes the system bounds based on the position of all
+// molecules
+std::tuple<Vec3, Vec3> compute_bounds(const SpecMap& specMap,
+                                      const std::vector<std::string>& specs) {
+  Vec3 llc = {std::numeric_limits<double>::max(),
+              std::numeric_limits<double>::max(),
+              std::numeric_limits<double>::max()};
+  Vec3 urc = {-std::numeric_limits<double>::max(),
+              -std::numeric_limits<double>::max(),
+              -std::numeric_limits<double>::max()};
+
+  for (const auto& s : specs) {
+    for (const auto& p : specMap.at(s).pos) {
+      if (p.x < llc.x) {
+        llc.x = p.x;
+      }
+      if (p.y < llc.y) {
+        llc.y = p.y;
+      }
+      if (p.z < llc.z) {
+        llc.z = p.z;
+      }
+      if (p.x > urc.x) {
+        urc.x = p.x;
+      }
+      if (p.y > urc.y) {
+        urc.y = p.y;
+      }
+      if (p.z > urc.z) {
+        urc.z = p.z;
+      }
+    }
+  }
+  return std::make_tuple(llc, urc);
+}
+
+// print_results outputs the results of the chi squared analysis
+void print_results(const Vec3& llc, const Vec3& urc, double chi2) {
+  std::cout << "------ system dimensions ------------------\n"
+            << "LLC: " << llc << "\n"
+            << "URC: " << urc << "\n\n";
+
+  if (chi2 < chi2_ref_999) {
+    std::cout << "selected molecules are uniformly distributed (p = 0.01)\n";
+  } else {
+    std::cout
+        << "selected molecules are not uniformly distributed (p = 0.01)\n";
+  }
+  std::cout << "CHI^2: " << chi2 << "/" << chi2_ref_999
+            << " (computed/expected)\n";
+}
+
+// compute_bins computes the 3D binning of all selected molecules
+std::tuple<binArray, long long> compute_bins(
+    const SpecMap& specMap, const std::vector<std::string>& specs,
+    const Vec3& llc, const Vec3& urc) {
+
+  long long numMols = 0;
+  Vec3 delta = (urc - llc) / N;
+  binArray bin{};
   for (const auto& s : specs) {
     for (const auto& p : specMap.at(s).pos) {
       auto v = p - llc;
@@ -61,61 +140,9 @@ void analyze_mol_positions(const SpecMap& specMap,
       }
 
       ++bin[bin_x + bin_y * N + bin_z*N2];
-    }
-  }
-
-  double expected = numMols / static_cast<double>(N3);
-  double chi2 = 0;
-  for (int z = 0; z < N; ++z) {
-    for (int y = 0; y < N; ++y) {
-      for (int x = 0; x < N; ++x) {
-        double val = bin[x + y * N + z * N2] - expected;
-        chi2 += val * val;
-      }
-    }
-  }
-  chi2 /= expected;
-
-  std::cout << "chi2 computed : " << chi2 << "\n";
-  std::cout << "chi2 theor    : " << chi2_ref_999 << "\n";
-}
-
-
-// compute_bounds computes the system bounds based on the position of all
-// molecules
-std::tuple<long long, Vec3, Vec3> compute_bounds(
-    const SpecMap& specMap, const std::vector<std::string>& specs) {
-  Vec3 llc = {std::numeric_limits<double>::max(),
-              std::numeric_limits<double>::max(),
-              std::numeric_limits<double>::max()};
-  Vec3 urc = {-std::numeric_limits<double>::max(),
-              -std::numeric_limits<double>::max(),
-              -std::numeric_limits<double>::max()};
-
-  long long numMols = 0;
-  for (const auto& s : specs) {
-    for (const auto& p : specMap.at(s).pos) {
-      if (p.x < llc.x) {
-        llc.x = p.x;
-      }
-      if (p.y < llc.y) {
-        llc.y = p.y;
-      }
-      if (p.z < llc.z) {
-        llc.z = p.z;
-      }
-      if (p.x > urc.x) {
-        urc.x = p.x;
-      }
-      if (p.y > urc.y) {
-        urc.y = p.y;
-      }
-      if (p.z > urc.z) {
-        urc.z = p.z;
-      }
       ++numMols;
     }
   }
-  return std::make_tuple(numMols, llc, urc);
+  return std::make_tuple(bin, numMols);
 }
 
