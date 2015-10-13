@@ -1,3 +1,4 @@
 test*
+*.swp
 *.o
 cb_info/cb_info
