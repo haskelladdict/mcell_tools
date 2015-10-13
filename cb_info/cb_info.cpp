@@ -151,20 +151,6 @@ std::string extract_and_check_species(const SpecMap& specMap,
   return "";
 }
 
-// several convenience operator overloads for Vec3 class
-std::ostream& operator<<(std::ostream& s, const Vec3& v) {
-  s << v.x << " " << v.y << " " << v.z;
-  return s;
-}
-
-Vec3 operator+(const Vec3& v1, const Vec3& v2) {
-  return Vec3{v1.x + v2.x, v1.y + v2.y, v1.z + v2.z};
-}
-
-Vec3 operator-(const Vec3& v1, const Vec3& v2) {
-  return Vec3{v1.x - v2.x, v1.y - v2.y, v1.z - v2.z};
-}
-
 
 // usage prints a quick usage info
 void usage() {

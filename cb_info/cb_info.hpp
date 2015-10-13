@@ -20,9 +20,26 @@ struct Vec3 {
 };
 
 // several convenience operator overloads for Vec3 class
-std::ostream& operator<<(std::ostream& s, const Vec3& v);
-Vec3 operator+(const Vec3& v1, const Vec3& v2);
-Vec3 operator-(const Vec3& v1, const Vec3& v2);
+inline std::ostream& operator<<(std::ostream& s, const Vec3& v) {
+  s << v.x << " " << v.y << " " << v.z;
+  return s;
+}
+
+inline Vec3 operator*(const Vec3& v1, double a) {
+  return Vec3{v1.x * a, v1.y * a, v1.z * a};
+}
+
+inline Vec3 operator+(const Vec3& v1, const Vec3& v2) {
+  return Vec3{v1.x + v2.x, v1.y + v2.y, v1.z + v2.z};
+}
+
+inline Vec3 operator-(const Vec3& v1, const Vec3& v2) {
+  return Vec3{v1.x - v2.x, v1.y - v2.y, v1.z - v2.z};
+}
+
+inline Vec3 operator/(const Vec3& v1, double a) {
+  return Vec3{v1.x / a, v1.y / a, v1.z / a};
+}
 
 // Species keeps the position and orientation info for a single
 // molecular species
