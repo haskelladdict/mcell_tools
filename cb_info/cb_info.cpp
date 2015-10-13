@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
     }
 
     if (cmdl.analyzePositions) {
-      analyze_mol_positions(specMap, cmdl);
+      analyze_mol_positions(specMap, cmdl.specs);
     }
   }
 
@@ -99,11 +99,11 @@ SpecMap parse_cb(const std::string& fileName) {
     spec.pos.reserve(numMols);
     assert(numMols % 3 == 0);
     for (size_t i = 0; i < numMols / 3; i++) {
-      Vec3 v;
-      read_val(file, v.x);
-      read_val(file, v.y);
-      read_val(file, v.z);
-      spec.pos.emplace_back(std::move(v));
+      float x, y, z;  // NOTE: cellblender format stores floats
+      read_val(file, x);
+      read_val(file, y);
+      read_val(file, z);
+      spec.pos.emplace_back(std::move(Vec3{x, y, z}));
     }
     specs[specName] = std::move(spec);
 
@@ -151,11 +151,20 @@ std::string extract_and_check_species(const SpecMap& specMap,
   return "";
 }
 
-// operator<< overload to print Vec3s
+// several convenience operator overloads for Vec3 class
 std::ostream& operator<<(std::ostream& s, const Vec3& v) {
   s << v.x << " " << v.y << " " << v.z;
   return s;
 }
+
+Vec3 operator+(const Vec3& v1, const Vec3& v2) {
+  return Vec3{v1.x + v2.x, v1.y + v2.y, v1.z + v2.z};
+}
+
+Vec3 operator-(const Vec3& v1, const Vec3& v2) {
+  return Vec3{v1.x - v2.x, v1.y - v2.y, v1.z - v2.z};
+}
+
 
 // usage prints a quick usage info
 void usage() {
@@ -175,7 +184,7 @@ void usage() {
       << "\t                         (empty string \"\" implies all species)\n"
       << "\t-s, --add_separator      add separator between species in "
          "printout\n"
-      << "\t-a, --analyse_positions  checks if molecules are uniformly "
+      << "\t-a, --analyze_positions  checks if molecules are uniformly "
          "distributed\n"
       << "\t-n, --species_name       name of species to print\n"
       << "\t-h, --help               this help message\n" << std::endl;

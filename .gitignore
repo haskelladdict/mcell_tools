@@ -1,2 +1,3 @@
 test*
-cb_info
+*.o
+cb_info/cb_info

@@ -13,15 +13,16 @@
 #include <vector>
 
 // Vec3 describes a 3D vector consisting of doubles
-// NOTE: MCell uses floats instead of doubles inside CellBlender format
 struct Vec3 {
-  float x;
-  float y;
-  float z;
+  double x;
+  double y;
+  double z;
 };
 
-// operator<< overload to print Vec3s
+// several convenience operator overloads for Vec3 class
 std::ostream& operator<<(std::ostream& s, const Vec3& v);
+Vec3 operator+(const Vec3& v1, const Vec3& v2);
+Vec3 operator-(const Vec3& v1, const Vec3& v2);
 
 // Species keeps the position and orientation info for a single
 // molecular species
