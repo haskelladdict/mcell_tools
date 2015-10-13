@@ -9,45 +9,54 @@
 #include <iostream>
 #include <string>
 
+#include "analyze.hpp"
 #include "cb_info.hpp"
 
 // forward declaration of static funcs
-static void usage(); 
+static void usage();
+static void error_and_exit(const std::string& errMsg);
 static CmdlOpts parse_cmdline(int argc, char** argv);
-static void print_positions(const SpecMap& specs, const CmdlOpts& cmdlOpts);
+static std::string check_cmdline_opts(const CmdlOpts& cmdlOpts);
+static std::string extract_and_check_species(const SpecMap& specMap,
+                                             CmdlOpts& cmdlOpts);
+static void print_positions(const SpecMap& specMap, const CmdlOpts& cmdlOpts);
 
+// main entry point
 int main(int argc, char** argv) {
 
-  if (argc <= 1) {
-    usage();
-    return EXIT_FAILURE;
-  }
   auto cmdl = parse_cmdline(argc, argv);
-  if (cmdl.files.size() == 0) {
-    std::cerr << "***** ERROR: No MCell viz files specified to operate on\n\n";
-    usage();
-    return EXIT_FAILURE;
+  std::string err = check_cmdline_opts(cmdl);
+  if (err != "") {
+    error_and_exit(err);
   }
 
   for (const auto& fileName : cmdl.files) {
-    SpecMap specs;
+    SpecMap specMap;
     try {
-      specs = parse_cb(fileName);
+      specMap = parse_cb(fileName);
     } catch (std::exception& e) {
-      std::cerr << "Failed to parse CellBlender file " << fileName << ": "
-                << e.what() << std::endl;
-      return EXIT_FAILURE;
+      error_and_exit("Failed to parse CellBlender file " + fileName + ": " +
+                     e.what());
+    }
+
+    err = extract_and_check_species(specMap, cmdl);
+    if (err != "") {
+      error_and_exit(err);
     }
 
     if (cmdl.info) {
-      for (const auto& s : specs) {
-        std::cout << s.first << "  " << s.second.pos.size() 
+      for (const auto& s : specMap) {
+        std::cout << s.first << "  " << s.second.pos.size()
           << "  " << (s.second.isVolMol ? "VOL" : "SURF") << "\n";
       }
     }
 
     if (cmdl.listMolPos) {
-      print_positions(specs, cmdl);
+      print_positions(specMap, cmdl);
+    }
+
+    if (cmdl.analyzePositions) {
+      analyze_mol_positions(specMap, cmdl);
     }
   }
 
@@ -89,7 +98,7 @@ SpecMap parse_cb(const std::string& fileName) {
     read_val(file, numMols);
     spec.pos.reserve(numMols);
     assert(numMols % 3 == 0);
-    for (int i = 0; i < numMols / 3; i++) {
+    for (size_t i = 0; i < numMols / 3; i++) {
       Vec3 v;
       read_val(file, v.x);
       read_val(file, v.y);
@@ -108,22 +117,44 @@ SpecMap parse_cb(const std::string& fileName) {
 }
 
 // print_positions prints the position info of the requested molecules
-void print_positions(const SpecMap& specs, const CmdlOpts& cmdl) {
-  if (cmdl.spec != "" && specs.find(cmdl.spec) != specs.end()) {
-    for (const auto& v : specs.at(cmdl.spec).pos) {
+// NOTE: this function assumes that all species requested for printing
+// actually exist.
+void print_positions(const SpecMap& specs, const CmdlOpts& cmdlOpts) {
+  for (const auto& s : cmdlOpts.specs) {
+    if (cmdlOpts.addSeparator) {
+      std::cout << "--- " << s << "\n";
+    }
+    for (const auto& v : specs.at(s).pos) {
       std::cout << v << "\n";
     }
   }
-  if (cmdl.spec == "") {
-    for (const auto& s : specs) {
-      if (cmdl.addSeparator) {
-        std::cout << "--- " << s.first << "\n";
-      }
-      for (const auto& v : s.second.pos) {
-        std::cout << v << "\n";
-      }
+}
+
+// extract_and_check_species check is the requested species (for printing)
+// exists. If not returns an error string. If no species were requested
+// picks all available species as default. If no errors were encountered
+// return an empty string.
+std::string extract_and_check_species(const SpecMap& specMap,
+                                      CmdlOpts& cmdlOpts) {
+  for (const auto& s : cmdlOpts.specs) {
+    if (specMap.find(s) == specMap.end()) {
+      return "Unknown species " + s + " requested";
     }
   }
+
+  if (cmdlOpts.specs.size() == 0) {
+    for (const auto& m : specMap) {
+      cmdlOpts.specs.push_back(m.first);
+    }
+  }
+
+  return "";
+}
+
+// operator<< overload to print Vec3s
+std::ostream& operator<<(std::ostream& s, const Vec3& v) {
+  s << v.x << " " << v.y << " " << v.z;
+  return s;
 }
 
 // usage prints a quick usage info
@@ -144,7 +175,9 @@ void usage() {
       << "\t                         (empty string \"\" implies all species)\n"
       << "\t-s, --add_separator      add separator between species in "
          "printout\n"
-      << "\t-n, --species_name       name of species to print\n" 
+      << "\t-a, --analyse_positions  checks if molecules are uniformly "
+         "distributed\n"
+      << "\t-n, --species_name       name of species to print\n"
       << "\t-h, --help               this help message\n" << std::endl;
 }
 
@@ -156,6 +189,7 @@ static struct option long_options[] = {
     {"print_mol_orientations", no_argument, NULL, 'o'},
     {"add_separator", no_argument, NULL, 's'},
     {"species_name", required_argument, NULL, 'n'},
+    {"analyze_positions", no_argument, NULL, 'a'},
     {"help", no_argument, NULL, 'h'}};
 
 // parse_cmdline parses the user provided command line options and
@@ -164,7 +198,7 @@ static CmdlOpts parse_cmdline(int argc, char** argv) {
 
   int c;
   CmdlOpts cmdlOpts;
-  while ((c = getopt_long(argc, argv, "in:spolh", long_options, NULL)) != -1) {
+  while ((c = getopt_long(argc, argv, "ain:spolh", long_options, NULL)) != -1) {
     switch (c) {
       case 'i':
         cmdlOpts.info = true;
@@ -179,11 +213,15 @@ static CmdlOpts parse_cmdline(int argc, char** argv) {
         break;
 
       case 'n':
-        cmdlOpts.spec = optarg;
+        cmdlOpts.specs.push_back(optarg);
         break;
 
       case 's':
         cmdlOpts.addSeparator = true;
+        break;
+
+      case 'a':
+        cmdlOpts.analyzePositions = true;
         break;
 
       case 'h':
@@ -194,7 +232,24 @@ static CmdlOpts parse_cmdline(int argc, char** argv) {
   while (optind < argc) {
     cmdlOpts.files.push_back(argv[optind++]);
   }
-  
+
   return cmdlOpts;
 }
 
+// check_cmdline_opts does a sanity check of the provided command line
+// options. If it finds a problem it returns a string with a description
+// and an empty string otherwise.
+std::string check_cmdline_opts(const CmdlOpts& cmdl) {
+  if (cmdl.files.size() == 0) {
+    return "No MCell viz files specified to operate on";
+  }
+  return "";
+}
+
+// error_and_exit aborts the program after printing the provided error
+// message and usage info.
+void error_and_exit(const std::string& errMsg) {
+  std::cerr << "***** ERROR: " << errMsg << "\n\n";
+  usage();
+  exit(1);
+}

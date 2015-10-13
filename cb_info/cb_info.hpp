@@ -21,10 +21,7 @@ struct Vec3 {
 };
 
 // operator<< overload to print Vec3s
-std::ostream& operator<<(std::ostream& s, const Vec3& v) {
-  s << v.x << " " << v.y << " " << v.z;
-  return s;
-}
+std::ostream& operator<<(std::ostream& s, const Vec3& v);
 
 // Species keeps the position and orientation info for a single
 // molecular species
@@ -47,13 +44,16 @@ void read_val(std::ifstream& s, T& val) {
 
 // CmdlOpts describes the user selected command line options
 struct CmdlOpts {
-  bool info = false;           // request basic file info
-  bool addSeparator = false;   // add separator between species when
-                               // outputing positions and orientations
-  bool listMolPos = false;     // request output of molecule positions
-  bool listMolOrient = false;  // request output of molecule orientation
-  std::string spec;  // species to act on; empty string implies all species
-  std::vector<std::string> files; // files to parse
+  bool info = false;              // request basic file info
+  bool addSeparator = false;      // add separator between species when
+                                  // outputing positions and orientations
+  bool analyzePositions = false;  // check if volume molecule positions
+                                  // are uniformly distributed
+  bool listMolPos = false;        // request output of molecule positions
+  bool listMolOrient = false;     // request output of molecule orientation
+  std::vector<std::string>
+      specs;  // species to act on; empty string implies all species
+  std::vector<std::string> files;  // files to parse
 };
 
 #endif
