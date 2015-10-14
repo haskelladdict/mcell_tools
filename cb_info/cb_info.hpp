@@ -46,6 +46,7 @@ inline Vec3 operator/(const Vec3& v1, double a) {
 struct Species {
   bool isVolMol = true;    // is the molecule a volume molecule
   std::vector<Vec3> pos;
+  std::vector<Vec3> orient; // orientations are only used for surface species 
 };
 
 using SpecMap = std::unordered_map<std::string, Species>;

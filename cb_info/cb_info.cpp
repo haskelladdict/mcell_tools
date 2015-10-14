@@ -16,10 +16,14 @@
 static void usage();
 static void error_and_exit(const std::string& errMsg);
 static CmdlOpts parse_cmdline(int argc, char** argv);
+static void read_Vec3s(std::ifstream& file, std::vector<Vec3>& vecs,
+                       size_t numMols);
 static std::string check_cmdline_opts(const CmdlOpts& cmdlOpts);
 static std::string extract_and_check_species(const SpecMap& specMap,
                                              CmdlOpts& cmdlOpts);
 static void print_positions(const SpecMap& specMap, const CmdlOpts& cmdlOpts);
+static void print_orientations(const SpecMap& specMap,
+                               const CmdlOpts& cmdlOpts);
 
 // main entry point
 int main(int argc, char** argv) {
@@ -55,6 +59,15 @@ int main(int argc, char** argv) {
       print_positions(specMap, cmdl);
     }
 
+    if (cmdl.listMolOrient) {
+      for (const auto& s : cmdl.specs) {
+        if (specMap.at(s).isVolMol) {
+          error_and_exit("Cannot list orientations for volume mol " + s);
+        }
+      }
+      print_orientations(specMap, cmdl);
+    }
+
     if (cmdl.analyzePositions) {
       analyze_mol_positions(specMap, cmdl.specs);
     }
@@ -88,22 +101,13 @@ SpecMap parse_cb(const std::string& fileName) {
     unsigned char type;
     read_val(file, type);
     spec.isVolMol = (type == 0) ? true : false;
-    // FIXME: currently we support only volume molecules
-    // this check can go away once surface mols are supported
-    if (!spec.isVolMol) {
-      throw std::runtime_error("surface mols are not currently supported");
-    }
 
     uint32_t numMols;
     read_val(file, numMols);
-    spec.pos.reserve(numMols);
-    assert(numMols % 3 == 0);
-    for (size_t i = 0; i < numMols / 3; i++) {
-      float x, y, z;  // NOTE: cellblender format stores floats
-      read_val(file, x);
-      read_val(file, y);
-      read_val(file, z);
-      spec.pos.emplace_back(std::move(Vec3{x, y, z}));
+
+    read_Vec3s(file, spec.pos, numMols);
+    if (!spec.isVolMol) {
+      read_Vec3s(file, spec.orient, numMols);
     }
     specs[specName] = std::move(spec);
 
@@ -115,6 +119,35 @@ SpecMap parse_cb(const std::string& fileName) {
 
   return specs;
 }
+
+// read_Vec3s reads numMols worth of Vec3s from the passed ifstream
+void read_Vec3s(std::ifstream& file, std::vector<Vec3>& vecs, size_t numMols) {
+  vecs.reserve(numMols);
+  assert(numMols % 3 == 0);
+  for (size_t i = 0; i < numMols / 3; i++) {
+    float x, y, z;  // NOTE: cellblender format stores floats
+    read_val(file, x);
+    read_val(file, y);
+    read_val(file, z);
+    vecs.emplace_back(std::move(Vec3{x, y, z}));
+  }
+}
+
+// print_orentations prints the position info of the requested molecules
+// NOTE: this function assumes that all species requested for printing
+// actually exist and are surface molecule species.
+void print_orientations(const SpecMap& specs, const CmdlOpts& cmdlOpts) {
+  for (const auto& s : cmdlOpts.specs) {
+    if (cmdlOpts.addSeparator) {
+      std::cout << "--- " << s << "\n";
+    }
+    for (const auto& v : specs.at(s).orient) {
+      std::cout << v << "\n";
+    }
+  }
+}
+
+
 
 // print_positions prints the position info of the requested molecules
 // NOTE: this function assumes that all species requested for printing

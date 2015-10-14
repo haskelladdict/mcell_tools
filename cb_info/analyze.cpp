@@ -14,13 +14,10 @@ using binArray = std::array<long long, N3>;
 // static helper functions
 static std::tuple<Vec3, Vec3> compute_bounds(
     const SpecMap& specMap, const std::vector<std::string>& specs);
-
 static std::tuple<binArray, long long> compute_bins(
     const SpecMap& specMap, const std::vector<std::string>& specs,
     const Vec3& llc, const Vec3& urc);
-
 static void print_results(const Vec3& v1, const Vec3& v2, double chi);
-
 
 // analyze_mol_positions tests if molecules are uniformly distributed
 std::string analyze_mol_positions(const SpecMap& specMap,
