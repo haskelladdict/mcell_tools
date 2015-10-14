@@ -90,7 +90,7 @@ std::tuple<Vec3, Vec3> compute_bounds(const SpecMap& specMap,
 
 // print_results outputs the results of the chi squared analysis
 void print_results(const Vec3& llc, const Vec3& urc, double chi2) {
-  std::cout << "------ system dimensions ------------------\n"
+  std::cout << "\n------ system dimensions ------------------\n"
             << "LLC: " << llc << "\n"
             << "URC: " << urc << "\n\n";
 
@@ -101,7 +101,7 @@ void print_results(const Vec3& llc, const Vec3& urc, double chi2) {
         << "selected molecules are not uniformly distributed (p = 0.01)\n";
   }
   std::cout << "CHI^2: " << chi2 << "/" << chi2_ref_999
-            << " (computed/expected)\n";
+            << " (computed/cutoff)\n";
 }
 
 // compute_bins computes the 3D binning of all selected molecules
