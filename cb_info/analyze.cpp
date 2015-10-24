@@ -108,31 +108,25 @@ std::tuple<binArray, long long> compute_bins(
 
   long long numMols = 0;
   Vec3 delta = (urc - llc) / N;
+  assert(delta.x >= 0 && delta.y >= 0 && delta.z >= 0);
+
   binArray bin{};
   for (const auto& s : specs) {
     for (const auto& p : specMap.at(s).pos) {
       auto v = p - llc;
-      assert(v.x >= 0);
-      size_t bin_x = static_cast<int>(v.x/delta.x);
-      if (bin_x < 0) {
-        bin_x = 0;
-      } else if (bin_x >= N) {
+      assert(v.x >= 0 && v.y >= 0 && v.z >= 0);
+      size_t bin_x = static_cast<size_t>(v.x/delta.x);
+      if (bin_x >= N) {
         bin_x = N-1;
       }
 
-      assert(v.y >= 0);
-      size_t bin_y = static_cast<int>(v.y/delta.y);
-      if (bin_y < 0) {
-        bin_y = 0;
-      } else if (bin_y >= N) {
+      size_t bin_y = static_cast<size_t>(v.y/delta.y);
+      if (bin_y >= N) {
         bin_y = N-1;
       }
 
-      assert(v.z >= 0);
-      size_t bin_z = static_cast<int>(v.z/delta.z);
-      if (bin_z < 0) {
-        bin_z = 0;
-      } else if (bin_z >= N) {
+      size_t bin_z = static_cast<size_t>(v.z/delta.z);
+      if (bin_z >= N) {
         bin_z = N-1;
       }
 
