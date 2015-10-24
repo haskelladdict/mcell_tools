@@ -1,5 +1,5 @@
-test*
 *.swp
 *.o
 tags
+CMake*
 cb_info/cb_info
