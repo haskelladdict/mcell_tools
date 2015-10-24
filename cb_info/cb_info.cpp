@@ -3,10 +3,12 @@
 // (C) Markus Dittrich, 2015
 // Licenses under a BSD license, see LICENSE file for details
 
+#include <algorithm>
 #include <cassert>
 #include <exception>
 #include <getopt.h>
 #include <iostream>
+#include <iterator>
 #include <string>
 
 #include "analyze.hpp"
@@ -176,11 +178,10 @@ std::string extract_and_check_species(const SpecMap& specMap,
   }
 
   if (cmdlOpts.specs.size() == 0) {
-    for (const auto& m : specMap) {
-      cmdlOpts.specs.push_back(m.first);
-    }
+    std::transform(specMap.begin(), specMap.end(),
+                   std::back_inserter(cmdlOpts.specs),
+                   [](const auto& p) { return p.first; });
   }
-
   return "";
 }
 
@@ -194,13 +195,12 @@ void usage() {
       << "\n"
       << "\t-i, --species_info       print names of species and number of\n"
       << "\t                         available molecules\n"
-      << "\t-p, --print_mol_positions <species type>\n"
-      << "\t                         print the (x,y,z) positions of all\n"
-      << "\t                         molecules of species type\n"
-      << "\t-o, --print_mol_orientations <species type>\n"
-      << "\t                         print the orientations of all\n"
-      << "\t                         molecules of species type\n"
-      << "\t                         (empty string \"\" implies all species)\n"
+      << "\t-p, --print_mol_positions print the (x,y,z) positions of all\n"
+      << "\t                          molecules of species type\n"
+      << "\t-o, --print_mol_orientations print the orientations of all\n"
+      << "\t                             molecules of species type\n"
+      << "\t                             (empty string \"\" implies all "
+         "species)\n"
       << "\t-s, --add_separator      add separator between species in "
          "printout\n"
       << "\t-a, --analyze_positions  checks if molecules are uniformly "
